@@ -1,17 +1,27 @@
 name: Release
 
-# 发版流程：`npm version patch && git push --follow-tags`（tag 形如 v0.1.1）。
-# 只有 tag 与 package.json 版本一致才会发布；重复 tag 会跳过 npm 发布但仍更新 Release。
+# 发版流程（staged publishing + trusted publishing，不需要任何长期 token）：
+#
+#   npm version patch && git push --follow-tags
+#
+# 这个流水线只把版本**暂存**到 npm 的 stage 队列（非公开、不可安装）。维护者随后
+# 在 npmjs.com 的 Staged Packages 标签页（或 CLI `npm stage approve <stage-id>`）
+# 用 2FA 点批准，版本才正式上线。
+#
+# 前提（详见 docs/release.md）：
+#   - npm 账号已开 2FA
+#   - 包已存在于 registry：stage 不支持全新包，首次发布必须手工 `npm publish`
+#   - npmjs.com 上已为本仓库配置 trusted publisher，且限制为 stage-only
 on:
   push:
     tags: ['v*']
 
 permissions:
   contents: write # gh release create
-  id-token: write # npm provenance（attestation）
+  id-token: write # trusted publishing（OIDC）；provenance 会由它自动生成
 
 jobs:
-  publish:
+  stage:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -20,9 +30,15 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: '22'
+          node-version: '24'
           registry-url: https://registry.npmjs.org
           cache: npm
+
+      # npm stage 需要 CLI >= 11.15；runner 自带版本不保证，显式升级。
+      - name: Ensure npm supports staged publishing
+        run: |
+          npm install -g npm@latest
+          npm -v
 
       - run: npm ci
 
@@ -33,7 +49,7 @@ jobs:
             echo "::error::tag ${GITHUB_REF_NAME} 与 package.json 的 v${VERSION} 不一致"
             exit 1
           fi
-          echo "发布 v${VERSION}"
+          echo "暂存 v${VERSION}"
 
       - name: Lint and test
         run: npm run verify
@@ -44,18 +60,30 @@ jobs:
           VERSION=$(node -p "require('./package.json').version")
           if npm view "dsh-feishu-auth@${VERSION}" version >/dev/null 2>&1; then
             echo "published=true" >> "$GITHUB_OUTPUT"
-            echo "npm 上已有 ${VERSION}，跳过发布"
+            echo "npm 上已有 ${VERSION}，跳过暂存"
           else
             echo "published=false" >> "$GITHUB_OUTPUT"
           fi
 
-      # 需要 registry 凭据：见 AGENTS.md「发布与发版」。配好 npm Trusted Publishing
-      # 时可以删掉 NODE_AUTH_TOKEN（provenance 走 OIDC，不需要长期 token）。
-      - name: Publish to npm
+      # 只暂存。凭据走 OIDC（trusted publishing），不需要 NPM_TOKEN。
+      - name: Stage the package on npm
         if: steps.check.outputs.published == 'false'
-        run: npm publish --provenance --access public
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: npm stage publish --access public
+
+      - name: Explain the approval step
+        if: steps.check.outputs.published == 'false'
+        run: |
+          VERSION=$(node -p "require('./package.json').version")
+          {
+            echo "### 已暂存 dsh-feishu-auth@${VERSION}"
+            echo
+            echo "这个版本**还没有上线**，对公众不可见。用 2FA 批准后才会生效："
+            echo
+            echo "- 网页：npmjs.com → 你的账号 → **Staged Packages** 标签页 → Approve"
+            echo "- CLI：\`npm stage list\` 拿到 stage id → \`npm stage approve <stage-id>\`"
+            echo
+            echo "包页面（批准后生效）：https://www.npmjs.com/package/dsh-feishu-auth"
+          } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Create GitHub Release
         env:

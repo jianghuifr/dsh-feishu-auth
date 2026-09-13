@@ -21,7 +21,7 @@ npm ci               # 只装 devDependencies（eslint）；运行时零依赖
 npm run lint
 npm test             # node --test，39 个用例
 npm run verify       # lint + test —— CI 与 prepublishOnly 跑的就是它
-npm pack --dry-run   # 检查发布产物内容（14 个文件）
+npm pack --dry-run   # 检查发布产物内容（15 个文件）
 ```
 
 ## CI
@@ -32,27 +32,50 @@ npm pack --dry-run   # 检查发布产物内容（14 个文件）
 | --- | --- |
 | `lint` | `npm ci` + `npm run lint` |
 | `test` | node 22 / 24 矩阵 + `npm test` |
-| `package` | `npm pack --dry-run` + `npm publish --dry-run`（发布产物与可发布性） |
+| `package` | `npm pack --dry-run` + `npm stage publish --dry-run`（与发版同一条命令，凭据无关） |
 
-## 发版
+## 发版：staged publishing + trusted publishing
 
-`.github/workflows/release.yml`，由 **tag 推送**触发。流程：校验 tag 与 `package.json` 版本一致 → `npm run verify` → 查 npm 上是否已有该版本 → `npm publish --provenance --access public` → `gh release create --generate-notes`。
+发布走 npm 的**暂存**机制：CI 把版本放进 stage 队列（非公开、不可安装），维护者再用 2FA 批准，版本才上线。这样 CI 里不需要任何长期 token——泄露的 token 也发不出版——代价是每次发版要人工点一次。
 
 ```bash
-npm version patch      # 或 minor / major；同时改 package.json 并生成 vX.Y.Z tag
+npm version patch      # 或 minor / major；改 package.json 并生成 vX.Y.Z tag
 git push --follow-tags
 ```
 
-- 版本已存在于 npm 时**跳过发布**但仍更新 Release 说明，重复推 tag 不会把流程炸掉。
-- 发布失败可在 Actions 页面直接 Re-run 该 job。
-- `--provenance` 需要 `id-token: write`（workflow 里已声明），npm 会为产物附上 attestation。
+`.github/workflows/release.yml` 依次做四件事：校验 tag 与 `package.json` 版本一致 → `npm run verify` → 查 npm 上是否已有该版本（有则跳过暂存）→ `npm stage publish --access public` → `gh release create --generate-notes`。流水线最后会把「待批准」写进该次运行的 Summary。
 
-## 首次发布要配的凭据
+随后批准上线，二选一：
 
-两条路，选一条：
+- 网页：npmjs.com → 你的账号 → **Staged Packages** → 选中版本 → Approve（提示 2FA）
+- CLI：`npm stage list` 拿 stage id → `npm stage approve <stage-id>`（需 2FA）
 
-1. **npm Trusted Publishing（推荐，无需长期 token）** — 在 npmjs.com 该包的 Publishing 设置里添加 GitHub Actions 发布者（仓库 `jianghuifr/dsh-feishu-auth` + workflow 文件名 `release.yml`）。配好后可以从 `release.yml` 里删掉 `NODE_AUTH_TOKEN`，鉴权走 OIDC。
-2. **NPM_TOKEN** — npmjs.com 生成 Automation token，在 GitHub 仓库 Settings → Secrets and variables → Actions 里新建 secret `NPM_TOKEN`。`release.yml` 已按这个名字引用。
+批准前可以验货：`npm stage download <stage-id>` 把 tarball 拉下来看，`npm stage reject <stage-id>` 丢弃。
+
+### 前提
+
+| 前提 | 说明 |
+| --- | --- |
+| 账号已开 2FA | staged publishing 的硬要求；`npm stage publish` 不要 2FA，approve 必须过 |
+| 包已存在于 registry | **stage 不支持全新包**，首次发布必须手工 `npm publish` |
+| trusted publisher 已配置 | npmjs.com 该包 → Settings → Trusted Publishing → 添加 GitHub Actions 发布者：`jianghuifr` / `dsh-feishu-auth` / workflow `release.yml`，权限限制为 **stage-only** |
+
+配成 stage-only 后，该 workflow 发起的 `npm publish` 会被 registry 拒绝，只有 `npm stage publish` 被接受。
+
+### 首次发布（只需一次，手工）
+
+```bash
+cd ~/.dsh/plugins/dsh-feishu-auth
+npm login --registry https://registry.npmjs.org
+npm publish --access public --registry https://registry.npmjs.org
+```
+
+- 必须显式指定 registry：本机 npm 默认源是镜像站，不加会发到镜像。
+- 手工发布的 0.1.0 不带 provenance（provenance 需要 CI 的 OIDC）；从 0.1.1 起走流水线自动带。
+
+## 版本号与 npm CLI
+
+`npm stage` 需要 npm CLI ≥ 11.15，本机是 11.6.2，所以本机要用 `npx npm@latest stage ...`；`ci.yml` 与 `release.yml` 里都显式 `npm install -g npm@latest`，不受 runner 自带版本影响。
 
 包名 `dsh-feishu-auth` 未被占用（2026-09-13 查 registry 返回 404）。首次发布前确认 npm 账号已开 2FA。
 

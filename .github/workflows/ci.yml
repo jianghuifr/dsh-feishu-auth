@@ -48,6 +48,9 @@ jobs:
           node-version: '22'
           cache: npm
       - run: npm ci
-      # 发布产物必须自洽：打包内容、可安装性（dry-run 走一遍 registry 校验）。
+      # 发布产物必须自洽：打包内容 + 真实发布命令（staged publishing）的 dry-run。
       - run: npm pack --dry-run
-      - run: npm publish --dry-run
+      - name: Ensure npm supports staged publishing
+        run: npm install -g npm@latest
+      # 与 release.yml 用同一条命令；dry-run 不需要任何凭据（已本地验证）。
+      - run: npm stage publish --dry-run
