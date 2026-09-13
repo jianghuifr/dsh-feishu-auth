@@ -1,0 +1,25 @@
+{
+  "name": "dsh-feishu-auth",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Feishu (Lark) web-app login gate for the DeepSeek Harness web GUI.",
+  "type": "module",
+  "main": "lib/index.js",
+  "exports": {
+    ".": "./lib/index.js",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "lib/",
+    "enable.patch.yml",
+    "disable.patch.yml",
+    "README.md"
+  ],
+  "scripts": {
+    "test": "node --test"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "license": "MIT"
+}
