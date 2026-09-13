@@ -25,7 +25,15 @@ test('signed payloads round-trip', () => {
 
 test('a tampered body, signature, or version is rejected', () => {
   const [version, body, signature] = signPayload(secret, { kind: 'session', sub: 'ou_1' }).split('.');
-  assert.equal(verifyPayload(secret, `${version}.${body}.${signature.slice(0, -1)}A`), undefined);
+  // Every single-character signature flip must be rejected. Replacing the last character
+  // with a fixed letter made this flaky: a 1-in-64 chance of rebuilding the original string.
+  const original = signature.at(-1);
+  for (const char of 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_') {
+    if (char === original) continue;
+    assert.equal(verifyPayload(secret, `${version}.${body}.${signature.slice(0, -1)}${char}`), undefined);
+  }
+  const tamperedBody = `${body.slice(0, -1)}${body.endsWith('A') ? 'B' : 'A'}`;
+  assert.equal(verifyPayload(secret, `${version}.${tamperedBody}.${signature}`), undefined);
   assert.equal(verifyPayload(secret, `v2.${body}.${signature}`), undefined);
   assert.equal(verifyPayload(secret, `${version}.${body}`), undefined);
   assert.equal(verifyPayload(randomBytes(32), signPayload(secret, { kind: 'session' })), undefined);

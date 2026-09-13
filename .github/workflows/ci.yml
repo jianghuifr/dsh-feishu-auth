@@ -52,5 +52,10 @@ jobs:
       - run: npm pack --dry-run
       - name: Ensure npm supports staged publishing
         run: npm install -g npm@latest
-      # 与 release.yml 用同一条命令；dry-run 不需要任何凭据（已本地验证）。
-      - run: npm stage publish --dry-run
+      # 用临时的预发布版本号做 dry-run：真实版本一旦发布，registry 会以
+      # 「不能覆盖已发布版本」拒绝，那样每次发版后 CI 都会红，而这不是错误状态。
+      # 预发布版本号必须显式带 --tag。
+      - name: Verify the release command (dry run)
+        run: |
+          npm version --no-git-tag-version --force "0.0.0-ci-dryrun.$(date +%s)" >/dev/null
+          npm stage publish --dry-run --tag ci-dryrun
