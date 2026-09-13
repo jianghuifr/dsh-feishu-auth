@@ -119,6 +119,8 @@ sequenceDiagram
 
 生效路径两种：`appId`/`appSecret` 走环境变量（启动时读取，改完必须重启）；`allowedUsers`/`sessionMaxAgeDays` 写在 profile patch 行里，patch 层是 live 重载，保存即生效。
 
+本包以**组合包**分发：`package.json` 的 `dsh.bundle.patch` 指向 `cordis.patch.yml`，安装后这一层负责插入插件行。用户 profile 自己的 patch 层在组合包层之后应用，可以按 `id` 覆盖它（替换整行 `config`，不是深合并）。
+
 ## 模块与依赖方向
 
 ```

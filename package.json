@@ -1,8 +1,19 @@
 {
   "name": "dsh-feishu-auth",
   "version": "0.1.0",
-  "private": true,
-  "description": "Feishu (Lark) web-app login gate for the DeepSeek Harness web GUI.",
+  "description": "Feishu (Lark) OAuth login gate for the DeepSeek Harness web GUI.",
+  "keywords": [
+    "dsh",
+    "dsh-plugin",
+    "deepseek-harness",
+    "feishu",
+    "lark",
+    "auth",
+    "login",
+    "oauth",
+    "security",
+    "access-control"
+  ],
   "type": "module",
   "main": "lib/index.js",
   "exports": {
@@ -12,16 +23,40 @@
   "files": [
     "lib/",
     "docs/",
+    "cordis.patch.yml",
     "enable.patch.yml",
     "disable.patch.yml",
     "README.md",
     "AGENTS.md"
   ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/jianghuifr/dsh-feishu-auth.git"
+  },
+  "homepage": "https://github.com/jianghuifr/dsh-feishu-auth#readme",
+  "bugs": {
+    "url": "https://github.com/jianghuifr/dsh-feishu-auth/issues"
+  },
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    }
+  },
   "scripts": {
-    "test": "node --test"
+    "lint": "eslint .",
+    "test": "node --test",
+    "verify": "npm run lint && npm test",
+    "prepublishOnly": "npm run verify"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "eslint": "^10.10.0"
   },
   "engines": {
-    "node": ">=20"
+    "node": ">=22.19.0"
+  },
+  "publishConfig": {
+    "access": "public"
   },
   "license": "MIT"
 }

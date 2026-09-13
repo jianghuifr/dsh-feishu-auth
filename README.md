@@ -39,13 +39,18 @@ FEISHU_APP_ID=cli_xxxxxxxxxxxxxxxx
 FEISHU_APP_SECRET=xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 ```
 
-**3. 激活并启动** — 在 `~/.dsh/profiles/web/cordis.patch.yml` 插入插件行（照抄 [AGENTS.md 的安装与激活](AGENTS.md#安装与激活)），然后：
+**3. 激活并启动** — 从 npm 安装（推荐）：
 
 ```sh
+dsh plugin --profile web add dsh-feishu-auth
 dsh web --no-open --host 0.0.0.0 --port 3080 --trusted-host <你的隧道域名>
 ```
 
-日志出现 `飞书登录已挂载` 和 `网关自检通过` 就绪。权限（scope）不用申请，`open_id`、`union_id`、`tenant_key`、姓名直接可读。
+装完后 profile 的 `dsh.profile.bundles` 会多一行，启动日志出现 `飞书登录已挂载` 和 `网关自检通过` 就绪。
+
+> npm 上还没有这个版本、或想跑本地源码？手工放一份仓库到 `~/.dsh/plugins/dsh-feishu-auth/`，再照 [AGENTS.md 的安装与激活](AGENTS.md#安装与激活) 在 profile 里插一行即可。tarball 离线安装也用 `dsh plugin ... add ./dsh-feishu-auth-0.1.0.tgz`。
+
+权限（scope）不用申请，`open_id`、`union_id`、`tenant_key`、姓名直接可读。
 
 ## 配置
 
@@ -80,5 +85,6 @@ dsh --profile web --patch ~/.dsh/plugins/dsh-feishu-auth/disable.patch.yml \
 
 - [AGENTS.md](AGENTS.md) — 面向 agent 与维护者：安装激活、运维速查、开发约束、改动流程
 - [docs/architecture.md](docs/architecture.md) — 内部设计：拦截层、两段式交接、Cookie 与会话、失败模式
+- [docs/release.md](docs/release.md) — 分发形态、CI 与发版流程
 
 MIT

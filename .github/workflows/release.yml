@@ -1,0 +1,63 @@
+name: Release
+
+# 发版流程：`npm version patch && git push --follow-tags`（tag 形如 v0.1.1）。
+# 只有 tag 与 package.json 版本一致才会发布；重复 tag 会跳过 npm 发布但仍更新 Release。
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write # gh release create
+  id-token: write # npm provenance（attestation）
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          registry-url: https://registry.npmjs.org
+          cache: npm
+
+      - run: npm ci
+
+      - name: Verify tag matches package.json version
+        run: |
+          VERSION=$(node -p "require('./package.json').version")
+          if [ "${GITHUB_REF_NAME}" != "v${VERSION}" ]; then
+            echo "::error::tag ${GITHUB_REF_NAME} 与 package.json 的 v${VERSION} 不一致"
+            exit 1
+          fi
+          echo "发布 v${VERSION}"
+
+      - name: Lint and test
+        run: npm run verify
+
+      - name: Check whether this version is already on npm
+        id: check
+        run: |
+          VERSION=$(node -p "require('./package.json').version")
+          if npm view "dsh-feishu-auth@${VERSION}" version >/dev/null 2>&1; then
+            echo "published=true" >> "$GITHUB_OUTPUT"
+            echo "npm 上已有 ${VERSION}，跳过发布"
+          else
+            echo "published=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      # 需要 registry 凭据：见 AGENTS.md「发布与发版」。配好 npm Trusted Publishing
+      # 时可以删掉 NODE_AUTH_TOKEN（provenance 走 OIDC，不需要长期 token）。
+      - name: Publish to npm
+        if: steps.check.outputs.published == 'false'
+        run: npm publish --provenance --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "${GITHUB_REF_NAME}" --generate-notes --title "${GITHUB_REF_NAME}"

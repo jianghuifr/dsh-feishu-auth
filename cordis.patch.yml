@@ -1,0 +1,10 @@
+# 组合包层：`dsh plugin --profile <name> add dsh-feishu-auth` 安装本包时应用。
+# 插件行按包名引用（不是相对路径），这样 Node 的模块解析才能找到已安装的代码。
+- insert:
+    - id: feishu-auth
+      name: dsh-feishu-auth
+      config:
+        # appId / appSecret 缺省从进程环境读 FEISHU_APP_ID / FEISHU_APP_SECRET；
+        # 也可以在这里直接写死（profile 自己的 cordis.patch.yml 可以覆盖这一行）。
+        allowedUsers: []
+        sessionMaxAgeDays: 14
