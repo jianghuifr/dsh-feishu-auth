@@ -11,9 +11,11 @@
   },
   "files": [
     "lib/",
+    "docs/",
     "enable.patch.yml",
     "disable.patch.yml",
-    "README.md"
+    "README.md",
+    "AGENTS.md"
   ],
   "scripts": {
     "test": "node --test"
