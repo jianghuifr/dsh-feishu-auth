@@ -29,6 +29,29 @@ function fakeServer({ routes = [], fallback } = {}) {
   };
 }
 
+/**
+ * A Cordis-shaped service stand-in: every read of a function-valued member returns
+ * a fresh shadow proxy (what the harness's traceable service access does), while
+ * `Symbol.for('cordis.original')` exposes the raw target.
+ */
+function traceable(target) {
+  const ORIGINAL = Symbol.for('cordis.original');
+  return new Proxy(target, {
+    get: (inner, prop, receiver) => {
+      if (prop === ORIGINAL) return inner;
+      const member = Reflect.get(inner, prop, receiver);
+      if (typeof prop === 'symbol' || typeof member !== 'function') return member;
+      return new Proxy(member, {
+        apply: (fn, thisArg, args) => Reflect.apply(fn, thisArg ?? receiver, args),
+      });
+    },
+    set: (inner, prop, value) => {
+      Reflect.set(inner, prop, value);
+      return true;
+    },
+  });
+}
+
 function fakeReq({ method = 'GET', url = '/', headers = {} } = {}) {
   return { method, url, headers: { host: HOST, accept: '*/*', ...headers }, socket: { remoteAddress: '10.0.0.9' } };
 }
@@ -115,6 +138,52 @@ test('install() intercepts the dispatch and dispose() restores it', async () => 
   assert.match(res.headers.location, /^\/feishu-auth\/login\?next=/u);
   dispose();
   assert.equal(server.match, original);
+});
+
+test('install() unwraps a dispatcher whose member reads return a fresh proxy', async () => {
+  const inner = fakeServer({ fallback: (req, res) => { res.writeHead(200); res.end('harness'); } });
+  const server = traceable(inner);
+  const dispose = makeGate().install(server);
+
+  const blocked = fakeRes();
+  await server.match('/').handler(fakeReq({ url: '/', headers: { accept: 'text/html' } }), blocked);
+  assert.equal(blocked.statusCode, 302, 'the gate must intercept through the proxy');
+
+  dispose();
+  // Every read hands back a new proxy, so this holds only when the layer is
+  // identified by marker: `server.match === gateMatch` can never be true here.
+  assert.equal(server.match('/'), undefined, 'the original dispatcher must be back');
+});
+
+test('a replacement mount survives the previous disposer running after it', async () => {
+  const inner = fakeServer({ fallback: (req, res) => { res.writeHead(200); res.end('harness'); } });
+  const server = traceable(inner);
+  const disposeFirst = makeGate().install(server);
+  const disposeSecond = makeGate().install(server);
+
+  disposeFirst();
+  const res = fakeRes();
+  await server.match('/').handler(fakeReq({ url: '/', headers: { accept: 'text/html' } }), res);
+  assert.equal(res.statusCode, 302, 'the live layer must not be torn down by the old disposer');
+
+  disposeSecond();
+  assert.equal(server.match('/'), undefined, 'the true original comes back');
+});
+
+test('install() collapses a leaked layer instead of nesting another one', async () => {
+  const inner = fakeServer({ fallback: (req, res) => { res.writeHead(200); res.end('harness'); } });
+  const server = traceable(inner);
+  // The pre-fix failure mode: a layer whose disposer never unwrapped it.
+  const leaked = makeGate().install(server);
+  void leaked;
+
+  const dispose = makeGate().install(server);
+  const res = fakeRes();
+  await server.match('/').handler(fakeReq({ url: '/', headers: { accept: 'text/html' } }), res);
+  assert.equal(res.statusCode, 302);
+
+  dispose();
+  assert.equal(server.match('/'), undefined, 'one dispose unwraps every layer this module installed');
 });
 
 test('deny: browsers get a redirect, programmatic callers get a JSON 401', async () => {

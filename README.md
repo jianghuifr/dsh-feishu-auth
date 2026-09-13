@@ -81,7 +81,7 @@ feishu-auth[info] 登录成功 name=张三 open_id=ou_xxx tenant=tk_xxx from 203
 
 ## 已知边界
 
-- 拦截点是运行中 `webServer` 的 `match(pathname)` 分发点（当前 dsh 没有全局中间件钩子）。找不到该分发点时插件**拒绝启动**并报错，不会静默放过。dsh 升级后若这里变了要同步适配。
+- 拦截点是运行中 `webServer` 的 `match(pathname)` 分发点（当前 dsh 没有全局中间件钩子）。找不到该分发点时插件**拒绝启动**并报错，不会静默放过。dsh 升级后若这里变了要同步适配。该分发点是 Cordis 服务成员，**每次读取都返回新的包装 Proxy**，因此挂载/卸载一律按符号标记识别自己的层、按 server 记录当前层，不做身份比较（否则卸载静默失效，网关会永久粘住）。
 - WebSocket（`/api/remote.mux`）不在拦截范围，但 DSH 自己会校验它签名的 Cookie，而那个 Cookie 只有走完飞书登录才拿得到。
 - 登录成功后会经 DSH 的令牌交换落到 `/`，所以地址栏会短暂出现 `?token=…`（DSH 自己的机制）。
 - HTTPS 不由本插件提供，用隧道或反代；回调地址会自动按请求的 `Host` + `X-Forwarded-Proto` 推导。
