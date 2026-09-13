@@ -17,9 +17,13 @@ flowchart TB
     AU -->|"是"| HO{"需要 harness 交接?"}
     HO -->|"是"| EX["303 → /?token=…<br/>+ 20s 交接标记"]
     HO -->|"否"| PS["交给 harness 原分发逻辑"]
+    PS -->|"harness 回 401<br/>（旧 dsh-auth-* 已作废）"| EX
 ```
 
-「需要 harness 交接」的判定：`GET/HEAD` 导航请求、路径是 `/`、URL 上没有 `token` 参数、请求里没有 `dsh-auth-` 开头的 Cookie，且没有交接标记（见下）。
+「需要 harness 交接」有两条触发路径：
+
+1. **请求前判定**：`GET/HEAD` 导航请求、路径是 `/`、URL 上没有 `token` 参数、请求里没有 `dsh-auth-` 开头的 Cookie，且没有交接标记（见下）。
+2. **响应后判定**：判定 1 只能看到 `dsh-auth-*` **存不存在**，但 harness 只在「根请求携带本进程启动令牌」时签发它——harness 一重启，浏览器手里那份旧 Cookie 就作废了，而它的存在反而压住了交接，把用户送上 harness 那张没有出口的 401 页。所以页面入口的请求交给 harness 之后还要看它的回答：**回 401 就再交接一次**（同样受交接标记约束）。
 
 ## 拦截层
 
@@ -68,6 +72,8 @@ sequenceDiagram
 
 **交接标记**（`dsh-feishu-handoff`，20 秒）是死循环的兜底：浏览器拒绝存 harness Cookie 时，`/` 与 `/?token=…` 之间只会来回一次。
 
+第 2 步的前提是「根请求带本进程的启动令牌」，所以 **harness 每次重启都会让浏览器里那份 `dsh-auth-*` 作废**。仅凭「Cookie 存不存在」判断交接会漏掉这种情况（旧 Cookie 还在，交接被压住，用户卡在 harness 的 401 页），因此交接判定同时看 harness 的回答：页面入口拿到 401 就再交接一次——老浏览器无需重新登录即可恢复。同理，交接后的 401 若再出现，交接标记会让它止步，把 harness 的 401 页作为终点而不是无尽往返。
+
 ```mermaid
 sequenceDiagram
     participant B as 浏览器
@@ -108,6 +114,7 @@ sequenceDiagram
 | 会话密钥文件不可读写 | 同上（内存里用临时密钥，重启即失效） |
 | `webServer.match` 不存在 | 挂载抛错，插件拒启动——无保护状态不允许运行 |
 | `connection` 服务取不到 | 记 error，交接退化为放行给 harness 的 401 页 |
+| harness 重启后浏览器仍带旧 `dsh-auth-*` | 响应后判定接管：harness 回 401 → 自动再交接一次（用户无感）；已带交接标记时不再重试，401 页成为终点 |
 | 启动自检失败 | `[error]` 明确报出：未登录请求未被拦，或持有效会话仍被拒 |
 | 配置项（`allowedUsers` / `sessionMaxAgeDays`）非法 | `allowedUsers` 非法 → 致命（避免悄悄放宽到全员）；`sessionMaxAgeDays` 非法 → 回落默认值 |
 

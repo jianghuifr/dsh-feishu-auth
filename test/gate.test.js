@@ -366,6 +366,101 @@ test('the handoff marker stops a second bounce when the harness cookie is refuse
   assert.equal(served, 1);
 });
 
+test('a harness 401 on the page entry point is answered with a fresh handoff', async () => {
+  let served = 0;
+  const server = fakeServer({
+    fallback: (req, res) => {
+      served += 1;
+      res.writeHead(401, { 'content-type': 'text/html' });
+      res.end('dsh web authentication required; reopen the URL printed by dsh web.');
+    },
+  });
+  makeGate().install(server);
+  const res = fakeRes();
+  // The browser still holds a `dsh-auth-*` cookie from the previous harness
+  // process, which keeps the pre-flight handoff check quiet — only the
+  // harness's own answer reveals that the cookie is worthless.
+  await server.match('/').handler(
+    fakeReq({ url: '/', headers: { cookie: `${sessionCookie()}; dsh-auth-old=stale`, accept: 'text/html' } }),
+    res,
+  );
+  assert.equal(res.statusCode, 303);
+  assert.equal(res.headers.location, '/?token=launch-token');
+  assert.ok(cookiePair(res, HANDOFF_COOKIE) !== undefined, 'the handoff must be marked');
+  assert.equal(res.headersSent, true);
+  assert.equal(res.body, '', 'the auth wall must not reach the browser');
+  assert.equal(served, 1);
+});
+
+test('a harness page served normally passes through untouched', async () => {
+  const server = fakeServer({
+    fallback: (req, res) => {
+      res.writeHead(200, { 'content-type': 'text/html' });
+      res.end('<html>the app</html>');
+    },
+  });
+  makeGate().install(server);
+  const res = fakeRes();
+  await server.match('/').handler(
+    fakeReq({ url: '/', headers: { cookie: `${sessionCookie()}; dsh-auth-old=stale`, accept: 'text/html' } }),
+    res,
+  );
+  assert.equal(res.statusCode, 200);
+  assert.equal(res.body, '<html>the app</html>');
+});
+
+test('the auth-wall handoff is bounded: a marked request keeps the harness 401', async () => {
+  let served = 0;
+  const server = fakeServer({
+    fallback: (req, res) => {
+      served += 1;
+      res.writeHead(401, { 'content-type': 'text/html' });
+      res.end('wall');
+    },
+  });
+  makeGate().install(server);
+  const res = fakeRes();
+  await server.match('/').handler(
+    fakeReq({
+      url: '/',
+      headers: { cookie: `${sessionCookie()}; dsh-auth-old=stale; ${HANDOFF_COOKIE}=1`, accept: 'text/html' },
+    }),
+    res,
+  );
+  assert.equal(res.statusCode, 401);
+  assert.equal(res.body, 'wall');
+  assert.equal(served, 1);
+});
+
+test('without a resolver an auth wall is forwarded instead of self-redirecting', async () => {
+  const server = fakeServer({ fallback: (req, res) => { res.writeHead(401); res.end('wall'); } });
+  makeGate({ entryUrl: null }).install(server);
+  const res = fakeRes();
+  await server.match('/').handler(
+    fakeReq({ url: '/', headers: { cookie: `${sessionCookie()}; dsh-auth-old=stale`, accept: 'text/html' } }),
+    res,
+  );
+  assert.equal(res.statusCode, 401);
+  assert.equal(res.body, 'wall');
+});
+
+test('a harness 401 on a non-page request is never rewritten', async () => {
+  const server = fakeServer({
+    fallback: (req, res) => {
+      res.writeHead(401, { 'content-type': 'application/json' });
+      res.end('{"error":"auth"}');
+    },
+  });
+  makeGate().install(server);
+  const res = fakeRes();
+  await server.match('/api/sessions').handler(
+    fakeReq({ url: '/api/sessions', headers: { cookie: `${sessionCookie()}; dsh-auth-old=stale` } }),
+    res,
+  );
+  assert.equal(res.statusCode, 401);
+  assert.equal(res.body, '{"error":"auth"}');
+});
+
 test('an authenticated non-navigation request is never bounced through the exchange', async () => {
   const server = fakeServer({ fallback: (req, res) => res.writeHead(200) });
   makeGate().install(server);
