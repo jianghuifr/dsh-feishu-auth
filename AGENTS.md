@@ -112,7 +112,7 @@ feishu-auth[error] 拿不到 harness 的入口地址（connection 服务不可�
 3. 提交并推送 `git push origin main`（仓库 `jianghuifr/dsh-feishu-auth`，带 `dsh-plugin` topic）。
 4. 影响用户可见行为或配置语义的改动，同步更新 [README.md](README.md) 和 [AGENTS.md](AGENTS.md)（本文）以及架构文档中的对应事实。
 5. 发版：`npm version patch` → 推 tag → CI 走 `npm stage publish`（OIDC，无 token）→ 在 npmjs 批准后上线。详见 [docs/release.md](docs/release.md)。
-6. 别用 `gh pr merge` 合并改动 `.github/workflows/` 的 PR：gh 的 OAuth token 没有 `workflow` scope，GitHub 会直接拒（与改动内容无关）；逐条比对 PR 内容后本地应用同样改动再 `git push`。
+6. 合并改动 `.github/workflows/` 的 PR 时，执行合并的凭据必须带 `workflow` scope（GitHub 对 OAuth App / PAT 的硬限制，与改动内容无关）：用 gh CLI 就先 `gh auth refresh -s workflow` 补授权，或改用网页合并，或本地应用同样改动后直接推 `main`。
 
 ## 与 dsh 版本的耦合点
 

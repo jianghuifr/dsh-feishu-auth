@@ -48,7 +48,7 @@ git push --follow-tags
 随后批准上线，二选一：
 
 - 网页：npmjs.com → 你的账号 → **Staged Packages** → 选中版本 → Approve（提示 2FA）
-- CLI：`npm stage list` 拿 stage id → `npm stage approve <stage-id>`（需 2FA）
+- CLI：`npm stage list` 拿 stage id → `npm stage approve <stage-id>`（需 2FA；npm 会要求到 `https://www.npmjs.com/auth/cli/…` 做一次浏览器认证，链接一次性且约几分钟过期，过期就重跑命令拿新链接）
 
 批准前可以验货：`npm stage download <stage-id>` 把 tarball 拉下来看，`npm stage reject <stage-id>` 丢弃。
 
@@ -67,17 +67,17 @@ git push --follow-tags
 `stage` 不支持全新包，所以建包这一次必须手工做，之后一律走上面的 staged 流程。
 
 ```bash
-cd ~/.dsh/plugins/dsh-feishu-auth
+# 在你自己的仓库副本里执行
 npm login --registry https://registry.npmjs.org
 npm publish --access public --registry https://registry.npmjs.org
 ```
 
-- 必须显式指定 registry：本机 npm 默认源是镜像站，不加会发到镜像。
+- 若你的 npm 默认源是镜像（国内常见配置），必须显式带 `--registry https://registry.npmjs.org`，否则会发到镜像上。
 - 手工发布的 0.1.0 不带 provenance（provenance 需要 CI 的 OIDC）；从 0.1.1 起走流水线自动带。
 
 ## 版本号与 npm CLI
 
-`npm stage` 需要 npm CLI ≥ 11.15，本机是 11.6.2，所以本机要用 `npx npm@latest stage ...`；`ci.yml` 与 `release.yml` 里都显式 `npm install -g npm@latest`，不受 runner 自带版本影响。
+`npm stage` 需要 npm CLI ≥ 11.15：本地版本不够时用 `npx npm@latest stage ...`。`ci.yml` 与 `release.yml` 里都显式 `npm install -g npm@latest`，不受 runner 自带版本影响。
 
 包名 `dsh-feishu-auth` 已发布（`0.1.0`，2026-09-13；此前查官方 registry 为 404 即未占用）。此后发版一律走 staged 流程，账号需保持 2FA 开启。
 
