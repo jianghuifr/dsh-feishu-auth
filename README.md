@@ -46,7 +46,17 @@ dsh --profile web --patch ~/.dsh/plugins/dsh-feishu-auth/disable.patch.yml --no-
 | `allowedUsers` | `[]` | 留空 = 放行「能使用本应用的任意飞书成员」；填了就只放行列出的 `open_id` / `union_id` / `user_id` |
 | `sessionMaxAgeDays` | `14` | 会话有效期，过期重新登录 |
 
-`allowedUsers` 里该填什么：被拒的人会在页面上看到**他自己**的 `open_id`，抄进去重启即可；日志里也会打印。
+`allowedUsers` 里该填什么：被拒的人会在页面上看到**他自己**的 `open_id`，抄进去**保存即可，不用重启**——profile 的 patch 层是热加载的（`dsh.profile.patchReload: live`），日志里会立刻出现一条新的「飞书登录已挂载」行，`允许范围` 随之改变。日志里也会打印被拒者的 `open_id`。
+
+名单只在**登录回调那一刻**判定，所以改名单不会踢掉已经登录的会话（已签发的会话 Cookie 照用到期或登出为止）。
+
+**什么时候要重启**：
+
+| 改动 | 生效方式 |
+| --- | --- |
+| `allowedUsers`、`sessionMaxAgeDays`（配置项） | 保存即生效，无需重启 |
+| `appId` / `appSecret` | 走 `~/.dsh/.env`，**只在启动时读取**，必须重启 |
+| 加 / 删 / 停用整行（`disabled: true`、删除 `- id: feishu-auth`） | 结构变更不会热生效，必须重启（实测挂载后 45 秒仍未摘除） |
 
 ## 运维
 
@@ -67,7 +77,7 @@ feishu-auth[info] 登录成功 name=张三 open_id=ou_xxx tenant=tk_xxx from 203
 | 飞书报 `redirect_uri unmatch` | 回调地址没登记或与访问地址不一致（隧道换域名了？） |
 | 飞书报 `20010` / 无应用使用权限 | 该账号不在应用可用范围内，或应用版本没发布 |
 | 换地址后要重新登录 | 正常：Cookie 按来源隔离，https 隧道与 `http://127.0.0.1` 各算一处 |
-| 想彻底回退 | 把 patch 里那行删掉，或加 `disabled: true` 重启 |
+| 想彻底回退 | 把 patch 里那行删掉，或加 `disabled: true`，然后**重启**（结构变更不会热生效） |
 
 ## 已知边界
 
