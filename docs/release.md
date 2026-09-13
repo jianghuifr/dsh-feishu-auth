@@ -62,7 +62,9 @@ git push --follow-tags
 
 配成 stage-only 后，该 workflow 发起的 `npm publish` 会被 registry 拒绝，只有 `npm stage publish` 被接受。
 
-### 首次发布（只需一次，手工）
+### 首次发布（已完成：0.1.0 于 2026-09-13 手工发布）
+
+`stage` 不支持全新包，所以建包这一次必须手工做，之后一律走上面的 staged 流程。
 
 ```bash
 cd ~/.dsh/plugins/dsh-feishu-auth
@@ -77,7 +79,7 @@ npm publish --access public --registry https://registry.npmjs.org
 
 `npm stage` 需要 npm CLI ≥ 11.15，本机是 11.6.2，所以本机要用 `npx npm@latest stage ...`；`ci.yml` 与 `release.yml` 里都显式 `npm install -g npm@latest`，不受 runner 自带版本影响。
 
-包名 `dsh-feishu-auth` 未被占用（2026-09-13 查 registry 返回 404）。首次发布前确认 npm 账号已开 2FA。
+包名 `dsh-feishu-auth` 已发布（`0.1.0`，2026-09-13；此前查官方 registry 为 404 即未占用）。此后发版一律走 staged 流程，账号需保持 2FA 开启。
 
 ## 依赖维护
 

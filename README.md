@@ -48,7 +48,7 @@ dsh web --no-open --host 0.0.0.0 --port 3080 --trusted-host <你的隧道域名>
 
 装完后 profile 的 `dsh.profile.bundles` 会多一行，启动日志出现 `飞书登录已挂载` 和 `网关自检通过` 就绪。
 
-> npm 上还没有这个版本、或想跑本地源码？手工放一份仓库到 `~/.dsh/plugins/dsh-feishu-auth/`，再照 [AGENTS.md 的安装与激活](AGENTS.md#安装与激活) 在 profile 里插一行即可。tarball 离线安装也用 `dsh plugin ... add ./dsh-feishu-auth-0.1.0.tgz`。
+> 想跑本地源码（要改代码、或离线环境）？手工放一份仓库到 `~/.dsh/plugins/dsh-feishu-auth/`，再照 [AGENTS.md 的安装与激活](AGENTS.md#安装与激活) 在 profile 里插一行。tarball 离线安装用 `dsh plugin ... add ./dsh-feishu-auth-0.1.0.tgz`。
 
 权限（scope）不用申请，`open_id`、`union_id`、`tenant_key`、姓名直接可读。
 
