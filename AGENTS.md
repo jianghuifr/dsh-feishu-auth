@@ -24,6 +24,7 @@ DSH（DeepSeek Harness）Web 界面的飞书 OAuth 登录网关。一个 Cordis 
 | `lib/pages.js` | 提示页（拒绝 / 错误 / 未就绪 / 已登出），全部内联样式 |
 | `enable.patch.yml` / `disable.patch.yml` | 启用 / 停用 overlay |
 | `test/` | `node --test`，零依赖，替身自建 |
+| `docs/architecture.md` / `docs/release.md` | 内部设计（拦截层身份、两段式交接）与发版流程（staged + trusted publishing） |
 
 零运行时依赖：只用 node 内置模块，所以在没 `pnpm install` 过的 profile 里也能直接引用。
 
@@ -110,6 +111,8 @@ feishu-auth[error] 拿不到 harness 的入口地址（connection 服务不可�
 2. 在本机 `dsh web` 实测：启动自检 + 未登录 302 + 完整交接 200；涉及卸载/重载的改动要额外验「停用 → 401、再启用 → 302」。
 3. 提交并推送 `git push origin main`（仓库 `jianghuifr/dsh-feishu-auth`，带 `dsh-plugin` topic）。
 4. 影响用户可见行为或配置语义的改动，同步更新 [README.md](README.md) 和 [AGENTS.md](AGENTS.md)（本文）以及架构文档中的对应事实。
+5. 发版：`npm version patch` → 推 tag → CI 走 `npm stage publish`（OIDC，无 token）→ 在 npmjs 批准后上线。详见 [docs/release.md](docs/release.md)。
+6. 别用 `gh pr merge` 合并改动 `.github/workflows/` 的 PR：gh 的 OAuth token 没有 `workflow` scope，GitHub 会直接拒（与改动内容无关）；逐条比对 PR 内容后本地应用同样改动再 `git push`。
 
 ## 与 dsh 版本的耦合点
 
