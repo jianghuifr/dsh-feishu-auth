@@ -1,7 +1,11 @@
 # Kept so an existing launch command that passes this overlay keeps working:
 #
-#   dsh --profile web --patch ~/.dsh/plugins/dsh-feishu-auth/enable.patch.yml \
-#     --no-open --host 0.0.0.0 --port 3080
+#   dsh --profile web --patch <path>/enable.patch.yml --no-open --host 0.0.0.0 --port 3080
+#
+# `<path>` is whichever copy you have (same rule as disable.patch.yml):
+#
+#   installed from npm : ~/.dsh/profiles/<profile>/node_modules/dsh-feishu-auth/
+#   local source tree  : ~/.dsh/plugins/dsh-feishu-auth/
 #
 # The profile row is enabled by default, so this file is a no-op. To boot the
 # page WITHOUT the login gate, use disable.patch.yml instead.

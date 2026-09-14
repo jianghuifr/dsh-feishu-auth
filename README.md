@@ -80,12 +80,19 @@ dsh web --no-open --host 0.0.0.0 --port 3080 --trusted-host <你的隧道域名>
 | 换了地址要重新登录 | 正常：Cookie 按来源隔离，https 隧道与 `http://127.0.0.1` 各算一处 |
 | 被自己关在门外 / 想彻底回退 | 用 `disable.patch.yml` 启动一次（见下），或给那行加 `disabled: true` 后重启 |
 
-临时停用（凭证写错、飞书挂了、改错配置把自己锁在外面）：
+临时停用（凭证写错、飞书挂了、改错配置把自己锁在外面）—— `--patch` 收的是**路径**，所以指向你实际装的那一份：
 
 ```sh
+# 从 npm 安装的（推荐）：包在 profile 的 node_modules 里
+dsh --profile web --patch ~/.dsh/profiles/web/node_modules/dsh-feishu-auth/disable.patch.yml \
+    --no-open --host 0.0.0.0 --port 3080
+
+# 本地源码跑的
 dsh --profile web --patch ~/.dsh/plugins/dsh-feishu-auth/disable.patch.yml \
     --no-open --host 0.0.0.0 --port 3080
 ```
+
+overlay 里只有 `- id: feishu-auth` + `disabled: true`，按 id 覆盖组合包自带的那一行，所以**与代码从哪加载无关**；需要路径的只有 `--patch` 自己。
 
 ## 文档
 

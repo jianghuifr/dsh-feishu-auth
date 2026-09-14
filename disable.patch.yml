@@ -1,7 +1,15 @@
-# Boot the page WITHOUT the Feishu login gate (rescue path, e.g. credentials
-# are wrong and the gate is refusing everyone):
+# Boot the page WITHOUT the Feishu login gate — the rescue path, e.g. the
+# credentials are wrong and the gate is refusing everyone.
 #
-#   dsh --profile web --patch ~/.dsh/plugins/dsh-feishu-auth/disable.patch.yml \
-#     --no-open --host 0.0.0.0 --port 3080
+# `--patch` takes a PATH, so point it at the copy you actually have:
+#
+#   installed from npm : ~/.dsh/profiles/<profile>/node_modules/dsh-feishu-auth/disable.patch.yml
+#   local source tree  : ~/.dsh/plugins/dsh-feishu-auth/disable.patch.yml
+#
+#   dsh --profile web --patch <that path> --no-open --host 0.0.0.0 --port 3080
+#
+# The row below is id-targeted (`- id: feishu-auth`), so it overrides the
+# bundle's own row no matter where the code was loaded from — only `--patch`
+# needs a real path.
 - id: feishu-auth
   disabled: true
