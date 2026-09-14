@@ -60,7 +60,7 @@ cd ~/.dsh/plugins/dsh-feishu-auth && node --test    # 单元用例
 | --- | --- |
 | 启动日志 | `飞书登录已挂载 …` + `网关自检通过（未登录 → HTTP 401，已登录 → HTTP 404）`，无 `[error]` |
 | 未登录访问（浏览器式请求） | `302 → /feishu-auth/login?next=…`；`/api` 无 cookie 时是 `401` JSON |
-| 完整登录交接 | `GET /` → `303 /?token=…` → harness 下发 `dsh-auth-*` cookie → 再访问 `/` 得 `200` 且返回真实应用页 |
+| 完整登录交接 | `GET /` → harness 回 401 时给 **200 同站重进页**（自动跳回 `/`）→ 再访问 `/` 得 `200` 真实应用页；harness 不回 401 时走 `303 /?token=…` → 下发 `dsh-auth-*` → 再访问 `/` 得 `200` |
 | 停用验证 | 探针应从 `302`（网关在岗）变成 `401`（harness 自己的门）——这是确认层真的被摘掉的唯一可靠信号 |
 | `/feishu-auth/status` | `{"gate":"enforce","authenticated":…}` |
 
