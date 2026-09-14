@@ -14,16 +14,26 @@ flowchart TB
     CFG -->|"是"| FC["503 未就绪页<br/>（故障关闭）"]
     CFG -->|"否"| AU{"有效会话 Cookie?"}
     AU -->|"否"| DN["导航: 302 → 飞书授权页<br/>其它: 401 JSON"]
-    AU -->|"是"| HO{"需要 harness 交接?"}
-    HO -->|"是"| EX["303 → /?token=…<br/>+ 20s 交接标记"]
-    HO -->|"否"| PS["交给 harness 原分发逻辑"]
-    PS -->|"harness 回 401<br/>（旧 dsh-auth-* 已作废）"| EX
+    AU -->|"是"| HO{"需要 harness 交接?<br/>（请求前判定）"}
+    HO -->|"是"| EX["303 → /?token=…<br/>+ 阶梯 0"]
+    HO -->|"否"| PS["交给 harness 原分发逻辑<br/>并盯住它的回答"]
+    PS -->|"harness 回 401"| LD{"恢复阶梯"}
+    LD -->|"阶梯 0"| EN["200 同站重进页<br/>+ 阶梯 1"]
+    LD -->|"阶梯 1"| EX2["303 → /?token=…<br/>+ 阶梯 2"]
+    LD -->|"阶梯 2"| ST["200「还差一步」页<br/>+ 清阶梯"]
+    EN --> PS
+    EX2 --> PS
 ```
 
 「需要 harness 交接」有两条触发路径：
 
-1. **请求前判定**：`GET/HEAD` 导航请求、路径是 `/`、URL 上没有 `token` 参数、请求里没有 `dsh-auth-` 开头的 Cookie，且没有交接标记（见下）。
-2. **响应后判定**：判定 1 只能看到 `dsh-auth-*` **存不存在**，但 harness 只在「根请求携带本进程启动令牌」时签发它——harness 一重启，浏览器手里那份旧 Cookie 就作废了，而它的存在反而压住了交接，把用户送上 harness 那张没有出口的 401 页。所以页面入口的请求交给 harness 之后还要看它的回答：**回 401 就再交接一次**（同样受交接标记约束）。
+1. **请求前判定**：`GET/HEAD` 导航请求、路径是 `/`、URL 上没有 `token` 参数、请求里没有 `dsh-auth-` 开头的 Cookie，且没有阶梯 Cookie。够用即走 `/?token=…`。
+2. **响应后判定（恢复阶梯）**：判定 1 只能看到 `dsh-auth-*` **存不存在**，看不到浏览器到底交没交上来。有两种状态会让已登录的页面请求仍被 harness 打回 401：
+
+   - **凭据作废**：harness 只在「根请求携带本进程启动令牌」时签发 `dsh-auth-*`，进程一重启，浏览器手里那份签名就验不过了；
+   - **凭据被扣下**：harness 那张 Cookie 是 `SameSite=Strict`，而浏览器若正沿一条**跨站跳转链**走（飞书 OAuth 回调就是，且这条链上的后续跳转都留在链里），链内所有请求都不会带上它——尽管它已经存好了。
+
+   两种状态的共同可靠信号就是 harness 自己的 401，所以页面入口的响应被 401 打回时，不把它转给用户，而是按阶梯走一步（阶梯值记在 `dsh-feishu-handoff` 里，见「两段式交接与恢复阶梯」）。
 
 ## 拦截层
 
@@ -61,33 +71,44 @@ sequenceDiagram
     L->>G2: dispose（是最新层 → 还原 original）
 ```
 
-## 两段式交接
+## 两段式交接与恢复阶梯
 
 飞书登录只签发本插件自己的会话 Cookie。harness 另有一层签名 Cookie（`dsh-auth-<authority>`），只在一个**根请求带上本进程启动令牌**时签发。所以「能打开页面」需要两段都完成：
 
 1. 网关把浏览器跳到 `connection.authenticatedUrl()` 给出的 `/?token=<launch token>`；
 2. harness 校验令牌、下发 `dsh-auth-*`，再跳回干净的 `/`。
 
-`connection` 服务**只能**经 `ctx.inject(['connection'], cb)` 取（`ctx.get` 返回 undefined，属性访问直接抛错），所以在插件挂载时捕获成 `entryUrlProvider`，每次请求时调用。取不到时打一行 error，并在交接判定里退化为直接放行给 harness（让它自己的 401 页成为终点，避免无休止往返）。
+`connection` 服务**只能**经 `ctx.inject(['connection'], cb)` 取（`ctx.get` 返回 undefined，属性访问直接抛错），所以在插件挂载时捕获成 `entryUrlProvider`，每次请求时调用。取不到时打一行 error，交接判定退化为「不交接」。
 
-**交接标记**（`dsh-feishu-handoff`，20 秒）是死循环的兜底：浏览器拒绝存 harness Cookie 时，`/` 与 `/?token=…` 之间只会来回一次。
+### 阶梯
 
-第 2 步的前提是「根请求带本进程的启动令牌」，所以 **harness 每次重启都会让浏览器里那份 `dsh-auth-*` 作废**。仅凭「Cookie 存不存在」判断交接会漏掉这种情况（旧 Cookie 还在，交接被压住，用户卡在 harness 的 401 页），因此交接判定同时看 harness 的回答：页面入口拿到 401 就再交接一次——老浏览器无需重新登录即可恢复。同理，交接后的 401 若再出现，交接标记会让它止步，把 harness 的 401 页作为终点而不是无尽往返。
+**`dsh-feishu-handoff`**（20 秒）记的是这台浏览器已经花掉的恢复步数，而不是一个 0/1 标记：
+
+| 值 | 含义 | 这一层的回答 |
+| --- | --- | --- |
+| 无 | 还没试过 | harness 回 401 → **同站重进页**（200，`location.replace`），记 1 |
+| `0` | 只做过请求前交接 | 同上（同站重进） |
+| `1` | 已同站重进 | harness 回 401 → **`303 /?token=…`**，记 2 |
+| `2` | 重进 + 交接都试过 | harness 回 401 → **「还差一步」页**（200，给按钮与原因），并清掉阶梯 |
+
+为什么要「同站重进」这一步：harness 的 `dsh-auth-<authority>` 带 `SameSite=Strict`，而飞书 OAuth 回调落在浏览器眼里是一条**跨站链**——链上所有请求（包括回调后 303 到 `/?token=…`、harness 再 303 回 `/`）都不带 Strict Cookie。于是在 `/` 这一跳被 harness 打回 401，尽管 Cookie 已经存好。此时从**本站域内的文档**发起一次跳转（我们的重进页就是），导航的同站属性成立，Cookie 就带上了——一次跳转、无需重新登录。实测：harness 的墙页面上执行 `location.replace('/')` 即返回应用页。
+
+作废旧凭据（harness 重启）走的是下一步：`/?token=…` 会重新签发一张能验过的 Cookie；这条链从同站重进之后出发，因此也在同站上下文里，新 Cookie 立刻可用。
+
+阶梯尽头（用户浏览器连续两次都不交出凭据，例如无痕窗口或拦截扩展）由插件自己的页面收尾并打 warn——**harness 的 401 页任何时候都不会被直接转给用户**，因为那张页面只写着一个对用户毫无意义的内部 URL。
 
 ```mermaid
 sequenceDiagram
     participant B as 浏览器
     participant G as 网关
     participant H as harness
-    B->>G: GET /
-    G->>B: 302 /feishu-auth/login
-    B->>G: GET /feishu-auth/login
-    G->>B: 302 飞书授权页（+ state Cookie）
-    B->>G: GET /feishu-auth/callback?code=…&state=…
-    G->>B: 303 /?token=…（+ 会话 Cookie + 交接标记）
-    B->>H: GET /?token=…
-    H->>B: 303 /（+ dsh-auth-* Cookie）
-    B->>G: GET /（会话 + dsh-auth-*）
+    B->>H: GET /?token=…（跨站链内）
+    H->>B: 303 /（+ dsh-auth-* Strict Cookie，链内被扣下）
+    B->>G: GET /（会话有，Strict Cookie 没带上）
+    G->>H: 放行
+    H->>B: 401 认证墙
+    G->>B: 200 同站重进页（吞掉 401，阶梯 1）
+    B->>G: GET /（同站导航 → 带上 Strict Cookie）
     G->>H: 放行
     H->>B: 200 应用页
 ```
@@ -100,7 +121,7 @@ sequenceDiagram
 | --- | --- | --- |
 | `dsh-feishu-session` | `sessionMaxAgeDays`（默认 14 天） | `kind=session`、`sub`（open_id）、`name`、`tenant`、`iat`、`exp` |
 | `dsh-feishu-state` | 10 分钟 | `kind=state`、`nonce`、`next`、`redirectUri`、`iat`、`exp` |
-| `dsh-feishu-handoff` | 20 秒 | 交接标记，防往返 |
+| `dsh-feishu-handoff` | 20 秒 | 恢复阶梯步数（`1` / `2`），防往返 |
 
 载荷统一是 `v1.<base64url(JSON)>.<base64url(HMAC-SHA256)>`，签名密钥是 `$DSH_HOME/feishu-auth/session-secret`（首次启动生成 32 字节、0600、原子写入；重启不变，所以登录态能跨重启存活）。校验用 `timingSafeEqual`，`state` 用常量时间比较防 CSRF。
 
@@ -113,8 +134,10 @@ sequenceDiagram
 | 缺 `appId` / `appSecret` | 故障关闭：所有请求 503「未就绪」页，日志 `[error]` 说明缺什么 |
 | 会话密钥文件不可读写 | 同上（内存里用临时密钥，重启即失效） |
 | `webServer.match` 不存在 | 挂载抛错，插件拒启动——无保护状态不允许运行 |
-| `connection` 服务取不到 | 记 error，交接退化为放行给 harness 的 401 页 |
-| harness 重启后浏览器仍带旧 `dsh-auth-*` | 响应后判定接管：harness 回 401 → 自动再交接一次（用户无感）；已带交接标记时不再重试，401 页成为终点 |
+| `connection` 服务取不到 | 记 error；不交接，页面入口的 401 由恢复阶梯兜住（同站重进 → 插件自己的页面） |
+| harness 重启后浏览器仍带旧 `dsh-auth-*` | 响应后判定接管：harness 回 401 → 阶梯（同站重进 → 再交接一次）→ 用户无感恢复 |
+| 浏览器沿跨站链到达（飞书 OAuth 回调） | 同一条阶梯的第一步就是为此设计的：同站重进一次即带上 `SameSite=Strict` 的 `dsh-auth-*` |
+| 浏览器两次都不交凭据（无痕窗口 / 拦截扩展） | 阶梯走完 → 插件自己的「还差一步」页 + 一行 warn，不把 harness 的 401 页转给用户 |
 | 启动自检失败 | `[error]` 明确报出：未登录请求未被拦，或持有效会话仍被拒 |
 | 配置项（`allowedUsers` / `sessionMaxAgeDays`）非法 | `allowedUsers` 非法 → 致命（避免悄悄放宽到全员）；`sessionMaxAgeDays` 非法 → 回落默认值 |
 

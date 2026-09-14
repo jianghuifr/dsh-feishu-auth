@@ -19,7 +19,7 @@ npm 路径靠 `package.json` 的 `dsh.bundle.patch` 声明自己是组合包，`
 ```bash
 npm ci               # 只装 devDependencies（eslint）；运行时零依赖
 npm run lint
-npm test             # node --test，39 个用例
+npm test             # node --test，45 个用例
 npm run verify       # lint + test —— CI 与 prepublishOnly 跑的就是它
 npm pack --dry-run   # 检查发布产物内容（15 个文件）
 ```
