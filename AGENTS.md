@@ -46,7 +46,7 @@ DSH（DeepSeek Harness）Web 界面的飞书 OAuth 登录网关。一个 Cordis 
 
 凭证放 `~/.dsh/.env`（`FEISHU_APP_ID` / `FEISHU_APP_SECRET`，权限 600）；`DSH_` 开头的变量不能写进 `.env`，启动器会直接报错。
 
-- **启用/停用 overlay**：`--patch <本目录>/enable.patch.yml` 或 `disable.patch.yml`，写在 `--profile web` 一侧（`dsh web` 别名形式不接受 `--patch`）。
+- **启用/停用 overlay**：`--patch` 收的是**路径**，按你实际装的那一份给——npm 装机 `~/.dsh/profiles/<profile>/node_modules/dsh-feishu-auth/disable.patch.yml`（或 `enable.patch.yml`），本地源码 `~/.dsh/plugins/dsh-feishu-auth/disable.patch.yml`。写在 `--profile web` 一侧（`dsh web` 别名形式不接受 `--patch`）；overlay 里的行按 `id` 覆盖组合包的行，与代码从哪加载无关。
 - **不要同时**用 profile 行和 `dsh plugin --profile web add` 安装同一个 id。
 
 ## 运行与验证
