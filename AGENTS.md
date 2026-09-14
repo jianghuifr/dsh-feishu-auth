@@ -89,7 +89,7 @@ feishu-auth[error] 拿不到 harness 的入口地址（connection 服务不可�
 | 现象 | 处理 |
 | --- | --- |
 | 所有请求 503 | 凭证不在进程环境里：确认 `~/.dsh/.env` 后重启 |
-| 登录成功后停在 harness 的 401 页 | 网关没拿到 harness 入口地址（日志有 error 行）：检查 `ctx.inject(['connection'])` 是否仍被 dsh 支持 |
+| 页面打不开（0.1.3 之前会停在 harness 的 401 页） | 网关自己收尾：先给同站重进页、再换新凭据，两轮都不行才给「还差一步」页并打 warn。若日志里完全没有恢复行、只有 `[error]` 说拿不到入口地址 → 检查 `ctx.inject(['connection'])` 是否仍被 dsh 支持 |
 | 飞书报 `redirect_uri unmatch` | 回调地址没登记/不一致；临时隧道换域名后必须补登记 |
 | 飞书报 `20010` | 账号不在应用可用范围，或应用版本未发布 |
 | 想立刻放行 | `disable.patch.yml` 启动一次，或给该行加 `disabled: true` 后重启 |
