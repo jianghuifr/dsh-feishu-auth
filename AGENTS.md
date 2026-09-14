@@ -121,7 +121,7 @@ feishu-auth[error] 拿不到 harness 的入口地址（connection 服务不可�
 | 依赖 | 用途 | 失效表现 |
 | --- | --- | --- |
 | `webServer.match(pathname)` 分发点 | 唯一的拦截缝隙 | 插件**拒绝启动**并报错（不会静默放过） |
-| `ctx.inject(['connection'])` | 取 harness 入口地址（两段式交接） | 日志 error；登录后停在 harness 的 401 页 |
+| `ctx.inject(['connection'])` | 取 harness 入口地址（两段式交接） | 日志 error；只剩同站重进这一步可救，跨站链那类场景会落到「还差一步」页 |
 | `dsh-auth-<authority>` Cookie 前缀 | 登出时清掉 harness 自己的 Cookie | 登出后可能被 harness 直接放回 |
 | `/?token=<launch token>` 兑换约定 | 交接第二段 | 同上 |
 
