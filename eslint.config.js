@@ -40,6 +40,15 @@ export default [
     },
   },
   {
+    // The browser half is a client bundle, not an ES module: it registers its
+    // factory through the page global and receives externals as `require`.
+    files: ['lib/client.js'],
+    languageOptions: {
+      sourceType: 'script',
+      globals: { window: 'readonly', require: 'readonly' },
+    },
+  },
+  {
     ignores: ['node_modules/', 'public/'],
   },
 ];

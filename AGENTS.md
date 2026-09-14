@@ -19,6 +19,7 @@ DSH（DeepSeek Harness）Web 界面的飞书 OAuth 登录网关。一个 Cordis 
 | `lib/gate.js` | 网关引擎：分发拦截与层标记、OAuth 端点、拒绝策略、harness 两段式交接 |
 | `lib/feishu.js` | 飞书接口：授权 URL、换 user_access_token、读用户信息 |
 | `lib/session.js` | HMAC 签名 Cookie（会话 / state）、密钥文件读写 |
+| `lib/client.js` | 浏览器半边：设置面板「退出登录」入口，注册进插槽 `settings.action` |
 | `lib/config.js` | 配置解析与 Cookie 名、TTL 常量 |
 | `lib/urls.js` | Host 规范化、回调地址推导、`next` 开放重定向防护、导航请求判定 |
 | `lib/pages.js` | 提示页（拒绝 / 错误 / 未就绪 / 已登出），全部内联样式 |
@@ -63,6 +64,7 @@ cd ~/.dsh/plugins/dsh-feishu-auth && node --test    # 单元用例
 | 完整登录交接 | `GET /` → harness 回 401 时给 **200 同站重进页**（自动跳回 `/`）→ 再访问 `/` 得 `200` 真实应用页；harness 不回 401 时走 `303 /?token=…` → 下发 `dsh-auth-*` → 再访问 `/` 得 `200` |
 | 停用验证 | 探针应从 `302`（网关在岗）变成 `401`（harness 自己的门）——这是确认层真的被摘掉的唯一可靠信号 |
 | `/feishu-auth/status` | `{"gate":"enforce","authenticated":…}` |
+| 设置页入口 | 打开设置面板：头部「关闭」左边出现「退出登录」；点击后落到「已退出登录」页，浏览器里本插件与 harness 的 Cookie 都清空 |
 
 ## 配置项的生效语义
 
@@ -101,7 +103,8 @@ feishu-auth[error] 拿不到 harness 的入口地址（connection 服务不可�
 - **绝不用身份比较判断服务成员。** `ctx.webServer` 是 Cordis traceable 服务，成员读取每次都返回新的包装 Proxy：`server.match === 你的函数` 恒为 false。识别自己的层只能靠符号标记，解包靠 `Symbol.for('cordis.original')`。详见架构文档。
 - **挂载/卸载必须幂等。** 热重载时新层可能先于旧层的 disposer 挂上：只允许最新层卸载，发现遗留层要复用它的原始实现而不是往上叠。
 - **新增行为要补用例**，并确认「旧实现下该用例会红」——否则它没锁住任何东西。
-- **不改客户端资产、不注入 DOM**：拦截只发生在 HTTP 层。
+- **不注入 DOM、不改 harness 的客户端资产**：要出现在界面上只走 dsh 的插槽（`lib/client.js`，见架构文档「客户端半边」），不要往页面里塞元素。
+- **浏览器半边必须保持「注册工厂」形态**：`lib/client.js` 顶层只允许 `window.__ModuleLoader__.load({ id, factory })`；`require` 与一切副作用都必须进 factory，否则运行时直接抛。
 - **提示页只用内联样式**，不能依赖被自己保护的静态资源。
 - 配置解析永不抛错：除凭证外的问题降级为默认值并记录；凭证缺失走故障关闭。
 
@@ -116,7 +119,7 @@ feishu-auth[error] 拿不到 harness 的入口地址（connection 服务不可�
 
 ## 与 dsh 版本的耦合点
 
-升级 dsh 后优先复核这四处，任何一处变了都要同步适配：
+升级 dsh 后优先复核这几处，任何一处变了都要同步适配：
 
 | 依赖 | 用途 | 失效表现 |
 | --- | --- | --- |
@@ -124,5 +127,7 @@ feishu-auth[error] 拿不到 harness 的入口地址（connection 服务不可�
 | `ctx.inject(['connection'])` | 取 harness 入口地址（两段式交接） | 日志 error；只剩同站重进这一步可救，跨站链那类场景会落到「还差一步」页 |
 | `dsh-auth-<authority>` Cookie 前缀 | 登出时清掉 harness 自己的 Cookie | 登出后可能被 harness 直接放回 |
 | `/?token=<launch token>` 兑换约定 | 交接第二段 | 同上 |
+| `dsh.client` + `exports["./client"]` 契约 | 浏览器半边的发现与托管（`/plugins/??<id>/client.js`） | 设置页里没有「退出登录」入口，`/plugins/…` 404 |
+| 插槽名 `settings.action`（`ctx.slots`） | 入口在设置面板里的位置 | 入口不出现；需换槽名并核对 `settings.*` 插槽目录 |
 
 另见架构文档「已知边界与风险」。

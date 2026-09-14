@@ -19,10 +19,12 @@ npm 路径靠 `package.json` 的 `dsh.bundle.patch` 声明自己是组合包，`
 ```bash
 npm ci               # 只装 devDependencies（eslint）；运行时零依赖
 npm run lint
-npm test             # node --test，45 个用例
+npm test             # node --test，50 个用例
 npm run verify       # lint + test —— CI 与 prepublishOnly 跑的就是它
-npm pack --dry-run   # 检查发布产物内容（15 个文件）
+npm pack --dry-run   # 检查发布产物内容（16 个文件）
 ```
+
+`lib/client.js`（浏览器半边）是**手写**的 loader 包装，不是构建产物：文件顶层只允许 `window.__ModuleLoader__.load({ id, factory })`，任何顶层 `require` 或副作用都会被运行时拒绝。改动它的规范见 [docs/architecture.md 的「客户端半边」](architecture.md#客户端半边)。
 
 ## CI
 

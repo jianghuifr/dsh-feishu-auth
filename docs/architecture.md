@@ -127,6 +127,15 @@ sequenceDiagram
 
 被拒的账号会看到**他自己**的 `open_id`（便于运维填 `allowedUsers`），不泄露他人信息；所有插值经 `escapeHtml`。
 
+## 客户端半边
+
+设置面板里的「退出登录」入口由 `lib/client.js` 提供——插件唯一的浏览器侧代码，同时消费两个外部契约：
+
+- **dsh 的客户端插件机制**（`@deepseek-ai/dsh-client-modules`）：包在 `package.json` 里声明 `dsh.client`（`platform: web`、`immediately`），产物挂在 `exports["./client"]`。服务端扫描**所有**这样声明的包（不限于 `@deepseek-ai/*`），按模块图顺序合成 combo 脚本，浏览器侧由 `window.__ModuleLoader__` 惰性执行。产物必须是**注册工厂形态**：文件顶层只调用 `window.__ModuleLoader__.load({ id, factory })`，不得有任何副作用或 `require`（运行时会抛 `requested external … before the module system existed`）。本插件手写这个包装，所以仓库仍然零依赖、零构建。
+- **插槽 API**（`ctx.slots`）：`inject(name, …)` 等槽出现后再 `register`。用的是 `settings.action`——「content-column header, before Close」，`kind: list`、`replaceRisk: none`，因此我们的条目是**加**进去的，不替换任何既有 UI。`settings.action` 由设置面板条目在挂载时声明，所以必须先 `inject` 再注册。
+
+登出本身仍归服务端：入口只是一个指向 `/feishu-auth/logout` 的普通链接，由网关清掉自己的会话 Cookie **和** harness 的 `dsh-auth-*`——少了后者，harness 会当场上门把人放回去。
+
 ## 失败模式
 
 | 情形 | 行为 |
@@ -138,6 +147,7 @@ sequenceDiagram
 | harness 重启后浏览器仍带旧 `dsh-auth-*` | 响应后判定接管：harness 回 401 → 阶梯（同站重进 → 再交接一次）→ 用户无感恢复 |
 | 浏览器沿跨站链到达（飞书 OAuth 回调） | 同一条阶梯的第一步就是为此设计的：同站重进一次即带上 `SameSite=Strict` 的 `dsh-auth-*` |
 | 浏览器两次都不交凭据（无痕窗口 / 拦截扩展） | 阶梯走完 → 插件自己的「还差一步」页 + 一行 warn，不把 harness 的 401 页转给用户 |
+| 客户端 bundle 没被服务（`/plugins/…` 404） | 设置面板里当然也没有入口：核对 `package.json` 的 `dsh.client` + `exports["./client"]`、文件存在，以及件里注册的 `id` 与包名一致（运行时会对不上就抛） |
 | 启动自检失败 | `[error]` 明确报出：未登录请求未被拦，或持有效会话仍被拒 |
 | 配置项（`allowedUsers` / `sessionMaxAgeDays`）非法 | `allowedUsers` 非法 → 致命（避免悄悄放宽到全员）；`sessionMaxAgeDays` 非法 → 回落默认值 |
 
