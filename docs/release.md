@@ -6,8 +6,8 @@
 
 | 形态 | 用途 | 装载方式 |
 | --- | --- | --- |
-| npm 包（组合包） | 常规安装 | `dsh plugin --profile <name> add dsh-feishu-auth` |
-| tarball | 离线 / 内网 | `npm pack` 后 `dsh plugin --profile <name> add ./dsh-feishu-auth-0.1.0.tgz` |
+| npm 包（组合包） | 常规安装 | `dsh plugin --profile <name> add @jianghuifr/dsh-feishu-auth` |
+| tarball | 离线 / 内网 | `npm pack` 后 `dsh plugin --profile <name> add ./jianghuifr-dsh-feishu-auth-0.1.0.tgz` |
 | 本地源码 | 开发 | 见 [AGENTS.md 的安装与激活](../AGENTS.md#安装与激活) |
 
 npm 路径靠 `package.json` 的 `dsh.bundle.patch` 声明自己是组合包，`cordis.patch.yml` 就是它应用的那一层——插件行按**包名**引用，Node 的模块解析才找得到已安装的代码。层语义：后应用的层按 `id` 覆盖前面的行，且 patch 替换整行 `config` 而不是深合并，所以用户 profile 自己的 `cordis.patch.yml` 能覆盖本包给的默认值。
@@ -81,7 +81,7 @@ npm publish --access public --registry https://registry.npmjs.org
 
 `npm stage` 需要 npm CLI ≥ 11.15：本地版本不够时用 `npx npm@latest stage ...`。`ci.yml` 与 `release.yml` 里都显式 `npm install -g npm@latest`，不受 runner 自带版本影响。
 
-包名 `dsh-feishu-auth` 已发布（`0.1.0`，2026-09-13；此前查官方 registry 为 404 即未占用）。此后发版一律走 staged 流程，账号需保持 2FA 开启。
+包名 `@jianghuifr/dsh-feishu-auth` 已发布（`0.1.0`，2026-09-13；此前查官方 registry 为 404 即未占用）。此后发版一律走 staged 流程，账号需保持 2FA 开启。
 
 ## 依赖维护
 

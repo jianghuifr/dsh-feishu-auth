@@ -1,5 +1,5 @@
 {
-  "name": "dsh-feishu-auth",
+  "name": "@jianghuifr/dsh-feishu-auth",
   "version": "0.2.1",
   "description": "Feishu (Lark) OAuth login gate for the DeepSeek Harness web GUI.",
   "keywords": [
@@ -30,6 +30,12 @@
     "README.md",
     "AGENTS.md"
   ],
+  "scripts": {
+    "lint": "eslint .",
+    "test": "node --test",
+    "verify": "npm run lint && npm test",
+    "prepublishOnly": "npm run verify"
+  },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/jianghuifr/dsh-feishu-auth.git"
@@ -37,6 +43,12 @@
   "homepage": "https://github.com/jianghuifr/dsh-feishu-auth#readme",
   "bugs": {
     "url": "https://github.com/jianghuifr/dsh-feishu-auth/issues"
+  },
+  "engines": {
+    "node": ">=22.19.0"
+  },
+  "publishConfig": {
+    "access": "public"
   },
   "dsh": {
     "bundle": {
@@ -48,21 +60,9 @@
       "immediately": true
     }
   },
-  "scripts": {
-    "lint": "eslint .",
-    "test": "node --test",
-    "verify": "npm run lint && npm test",
-    "prepublishOnly": "npm run verify"
-  },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
     "eslint": "^10.10.0"
-  },
-  "engines": {
-    "node": ">=22.19.0"
-  },
-  "publishConfig": {
-    "access": "public"
   },
   "license": "MIT"
 }

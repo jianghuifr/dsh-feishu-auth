@@ -58,7 +58,7 @@ jobs:
         id: check
         run: |
           VERSION=$(node -p "require('./package.json').version")
-          if npm view "dsh-feishu-auth@${VERSION}" version >/dev/null 2>&1; then
+          if npm view "@jianghuifr/dsh-feishu-auth@${VERSION}" version >/dev/null 2>&1; then
             echo "published=true" >> "$GITHUB_OUTPUT"
             echo "npm 上已有 ${VERSION}，跳过暂存"
           else
@@ -75,14 +75,14 @@ jobs:
         run: |
           VERSION=$(node -p "require('./package.json').version")
           {
-            echo "### 已暂存 dsh-feishu-auth@${VERSION}"
+            echo "### 已暂存 @jianghuifr/dsh-feishu-auth@${VERSION}"
             echo
             echo "这个版本**还没有上线**，对公众不可见。用 2FA 批准后才会生效："
             echo
             echo "- 网页：npmjs.com → 你的账号 → **Staged Packages** 标签页 → Approve"
             echo "- CLI：\`npm stage list\` 拿到 stage id → \`npm stage approve <stage-id>\`"
             echo
-            echo "包页面（批准后生效）：https://www.npmjs.com/package/dsh-feishu-auth"
+            echo "包页面（批准后生效）：https://www.npmjs.com/package/@jianghuifr/dsh-feishu-auth"
           } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Create GitHub Release

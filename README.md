@@ -1,4 +1,4 @@
-# dsh-feishu-auth
+# @jianghuifr/dsh-feishu-auth
 
 给 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness)（`dsh`）的 Web 界面加一道**飞书登录**：没通过飞书登录，首页、静态资源、`/api` 全拿不到。
 
@@ -42,7 +42,7 @@ FEISHU_APP_SECRET=xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 **3. 激活并启动** — 从 npm 安装（推荐）：
 
 ```sh
-dsh plugin --profile web add dsh-feishu-auth
+dsh plugin --profile web add @jianghuifr/dsh-feishu-auth
 dsh web --no-open --host 0.0.0.0 --port 3080 --trusted-host <你的隧道域名>
 ```
 

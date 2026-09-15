@@ -46,7 +46,7 @@ function loadBundle({ topLevelRequire = false } = {}) {
 test('the bundle registers exactly one factory under the package name', () => {
   const { registrations } = loadBundle();
   assert.equal(registrations.length, 1, 'one bundle, one registration');
-  assert.equal(registrations[0].id, 'dsh-feishu-auth', 'the id is the package name the server serves it under');
+  assert.equal(registrations[0].id, '@jianghuifr/dsh-feishu-auth', 'the id is the package name the server serves it under');
   assert.equal(typeof registrations[0].factory, 'function');
 });
 
