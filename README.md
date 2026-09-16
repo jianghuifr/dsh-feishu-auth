@@ -84,7 +84,7 @@ dsh web --no-open --host 0.0.0.0 --port 3080 --trusted-host <你的隧道域名>
 
 ```sh
 # 从 npm 安装的（推荐）：包在 profile 的 node_modules 里
-dsh --profile web --patch ~/.dsh/profiles/web/node_modules/dsh-feishu-auth/disable.patch.yml \
+dsh --profile web --patch ~/.dsh/profiles/web/node_modules/@jianghuifr/dsh-feishu-auth/disable.patch.yml \
     --no-open --host 0.0.0.0 --port 3080
 
 # 本地源码跑的

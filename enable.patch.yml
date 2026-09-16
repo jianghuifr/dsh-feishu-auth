@@ -4,7 +4,7 @@
 #
 # `<path>` is whichever copy you have (same rule as disable.patch.yml):
 #
-#   installed from npm : ~/.dsh/profiles/<profile>/node_modules/dsh-feishu-auth/
+#   installed from npm : ~/.dsh/profiles/<profile>/node_modules/@jianghuifr/dsh-feishu-auth/
 #   local source tree  : ~/.dsh/plugins/dsh-feishu-auth/
 #
 # The profile row is enabled by default, so this file is a no-op. To boot the
